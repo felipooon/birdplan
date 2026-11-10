@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BirdRuta Los Lagos | Optimizador de Rutas de Pajareo & eBird API Explorer</title>
+  <meta name="description" content="Encuentra la mejor ruta para avistar la mayor cantidad de especies de aves en la Región de Los Lagos (Chile), considerando registros de eBird, clima, horas de luz y actividad biológica.">
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Modern Design System -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="light-mode">
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="brand-wrapper">
+      <div class="brand-logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 7h.01"/>
+          <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 18z"/>
+          <path d="m20 7 2 .5-2 .5"/>
+          <path d="M10 18v3"/>
+          <path d="M14 17.75V21"/>
+          <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>BirdRuta Los Lagos</h1>
+        <p>Optimizador Ornitológico & Inteligencia eBird</p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" role="tablist">
+      <button class="nav-tab-btn active" data-tab="pane-optimizer" id="tab-optimizer" role="tab">
+        Ruta Óptima
+      </button>
+      <button class="nav-tab-btn" data-tab="pane-radar" id="tab-radar" role="tab">
+        Radar de Especies
+      </button>
+      <button class="nav-tab-btn" data-tab="pane-guide" id="tab-guide" role="tab">
+        Biorritmo y Clima
+      </button>
+    </nav>
+
+    <!-- Header Actions / API Key status & Theme toggle -->
+    <div class="header-actions">
+      <button type="button" id="themeToggleBtn" class="btn-secondary" onclick="toggleTheme()" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; border-radius: var(--radius-full); cursor: pointer;" title="Cambiar tema de la aplicación">
+        Modo Oscuro
+      </button>
+      <div class="api-key-badge" title="Conexión segura con API de eBird activa">
+        <span class="dot"></span>
+        <span>eBird Conectado</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="app-main">
+
+    <!-- ==================== TAB 1: RUTA ÓPTIMA LOS LAGOS ==================== -->
+    <section class="tab-pane active" id="pane-optimizer" role="tabpanel">
+      <div class="optimizer-grid">
+
+        <!-- Left Column: Controls & Filters -->
+        <aside class="glass-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Planificar Salida</h2>
+              <p class="panel-subtitle">Optimización por registros eBird, luz y clima</p>
+            </div>
+          </div>
+
+          <form id="routeForm">
+            <!-- Target Date Selector for October 10th -->
+            <div class="form-group">
+              <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Fecha de la Salida</span>
+                <span style="color: var(--emerald); font-weight: 600; text-transform: none; font-size: 0.75rem;">Primavera austral</span>
+              </label>
+              <div style="background: rgba(5, 150, 105, 0.08); border: 1px solid var(--border-glow); padding: 0.55rem 0.85rem; border-radius: var(--radius-sm); font-size: 0.88rem; font-weight: 600; color: var(--emerald-dark); display: flex; align-items: center; justify-content: space-between;">
+                <span>Sábado, 10 de Octubre</span>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">Clima calibrado</span>
+              </div>
+              <input type="hidden" id="routeDate" value="2026-10-10">
+            </div>
+
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+                <label class="form-label" for="routeHub" style="margin-bottom: 0;">Punto de Partida (Base)</label>
+                <button type="button" id="btnUseMyGps" style="background: none; border: none; color: var(--cyan); font-size: 0.75rem; cursor: pointer; text-decoration: underline;">
+                  Usar mi GPS
+                </button>
+              </div>
+              <select id="routeHub" class="form-select">
+                <option value="puerto_varas" selected>Puerto Varas (Base Lago Llanquihue)</option>
+                <option value="puerto_montt">Puerto Montt (Capital Regional & Seno)</option>
+                <option value="castro">Castro (Isla Grande de Chiloé Central)</option>
+                <option value="ancud">Ancud (Norte de Chiloé & Golfos)</option>
+                <option value="maullin">Maullín (Humedales & Santuario de la Naturaleza)</option>
+                <option value="osorno">Osorno (Valle Central & Acceso PN Puyehue)</option>
+                <option value="frutillar">Frutillar (Ribera Llanquihue)</option>
+                <option value="cochamo">Cochamó (Estuario del Reloncaví)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="routeSubzone">Corredor o Subzona</label>
+              <select id="routeSubzone" class="form-select">
+                <option value="all" selected>Toda la Región de Los Lagos (Máximo Rango)</option>
+                <option value="llanquihue">Cuenca Lago Llanquihue & PN Vicente Pérez Rosales</option>
+                <option value="chiloe">Archipiélago de Chiloé (Humedales & Costa Pacífica)</option>
+                <option value="maullin">Santuario Humedales de Maullín & Desembocadura</option>
+                <option value="osorno_puyehue">Parque Nacional Puyehue & Bosque Valdiviano</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="routeFocus">Enfoque de Observación</label>
+              <select id="routeFocus" class="form-select">
+                <option value="all" selected>Máxima Biodiversidad (Todas las Familias)</option>
+                <option value="forest">Especialistas de Bosque Templado (Chucao, Huet-huet, Carpintero)</option>
+                <option value="wetland">Humedales y Aves Playeras (Cisnes, Zarapitos, Flamencos)</option>
+              </select>
+            </div>
+
+            <!-- Intensity & Big Day Preset Switcher -->
+            <div class="form-group" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 1.1rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label class="form-label" for="routePace" style="color: var(--amber); margin-bottom: 0; font-weight: 700;">
+                  Intensidad y Ritmo por Parada
+                </label>
+                <span style="font-size: 0.7rem; background: var(--amber); color: #000; font-weight: 800; padding: 1px 6px; border-radius: 4px;">BIG DAY</span>
+              </div>
+              <select id="routePace" class="form-select" style="margin-top: 0.4rem; border-color: rgba(245, 158, 11, 0.4); font-weight: 600;">
+                <option value="blitz" selected>Paso Rápido: Big Day (35 min / parada)</option>
+                <option value="tactical">Paso Táctico eBird (45 min / parada)</option>
+                <option value="standard">Paso Pro Estándar (65 min / parada)</option>
+                <option value="relaxed">Paso Pausado / Fotografía (85 min / parada)</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="routeStartTime">Hora Salida (Madrugada)</label>
+                <input type="time" id="routeStartTime" class="form-control" value="05:45">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="routeDuration">Duración Jornada</label>
+                <select id="routeDuration" class="form-select">
+                  <option value="8">8 Horas</option>
+                  <option value="10">10 Horas</option>
+                  <option value="12">12 Horas (Amanecer a Ocaso)</option>
+                  <option value="14" selected>14 Horas (Jornada Completa)</option>
+                  <option value="16">16 Horas (Maratón Big Day Total)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="routeStops" style="display: flex; justify-content: space-between;">
+                <span>Cantidad de Hotspots a Visitar</span>
+                <span id="stopsLabelBadge" style="color: var(--emerald); font-weight: 700;">8 Paradas</span>
+              </label>
+              <select id="routeStops" class="form-select" onchange="document.getElementById('stopsLabelBadge').textContent = this.options[this.selectedIndex].text.split(' ')[0] + ' Paradas';">
+                <option value="4">4 Paradas (Relajada)</option>
+                <option value="6">6 Paradas (Estándar)</option>
+                <option value="8" selected>8 Paradas (Alta Intensidad)</option>
+                <option value="10">10 Paradas (Maratón Big Day)</option>
+                <option value="12">12 Paradas (Ultra Maratón)</option>
+                <option value="14">14 Paradas (Intensidad Máxima Continua)</option>
+              </select>
+            </div>
+
+            <button type="submit" id="btnCalculateRoute" class="btn-primary" style="margin-top: 0.5rem; background: linear-gradient(135deg, #059669, #0284c7);">
+              <span id="btnCalculateRouteSpinner" class="loading-spinner" style="display: none;"></span>
+              <span id="btnCalculateRouteText">Calcular Ruta Óptima</span>
+            </button>
+          </form>
+
+          <!-- Biological Tip Card -->
+          <div class="bio-tip-box" style="margin-top: 1.5rem; padding: 1rem; border-radius: var(--radius-md);">
+            <div style="font-weight: 700; font-size: 0.85rem; color: var(--emerald); display: flex; align-items: center; gap: 0.4rem;">
+              Estrategia de Pajareo en Los Lagos
+            </div>
+            <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.4rem; line-height: 1.45;">
+              El algoritmo programa <b>bosques templados</b> al amanecer (máxima detección de tapaculos como Chucao y Churrín por canto) y traslada la ruta a <b>estuarios y humedales</b> hacia el mediodía y la tarde cuando las aves acuáticas se alimentan con la marea.
+            </p>
+            <div class="bio-tip-divider" style="margin-top: 0.6rem; padding-top: 0.6rem; font-size: 0.75rem; color: var(--cyan); display: flex; align-items: center; gap: 0.35rem;">
+              <span><b>Filtro de precisión:</b> Se excluyen centroides y nombres genéricos de ciudades para priorizar spots naturales reales.</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Right Column: Map, Metrics & Itinerary -->
+        <div id="routeResultsSection">
+
+          <!-- Key Metrics Ribbon -->
+          <div class="metrics-ribbon">
+            <div class="metric-card">
+              <div class="metric-icon-box emerald">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 7h.01"/>
+                  <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 18z"/>
+                  <path d="m20 7 2 .5-2 .5"/>
+                  <path d="M10 18v3"/>
+                  <path d="M14 17.75V21"/>
+                  <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <h3>Especies Estimadas</h3>
+                <p id="metricSpeciesCount">74+</p>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-box cyan">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <h3>Recorrido Total</h3>
+                <p id="metricTotalKm">142 km</p>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-box amber">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <h3>Tiempo en Terreno</h3>
+                <p id="metricBirdingTime">6h 0m</p>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-box purple">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M12 2v2"/><path d="M12 20v2"/>
+                  <path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/>
+                  <path d="M2 12h2"/><path d="M20 12h2"/>
+                  <path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <h3>Ventana Solar (10 Oct)</h3>
+                <p id="metricSunTimes">07:10 / 20:07</p>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-box" style="background: rgba(2, 132, 199, 0.12); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.25);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12c2.5-3 5-3 7 0s4.5 3 7 0 4.5-3 6 0"/>
+                  <path d="M2 18c2.5-3 5-3 7 0s4.5 3 7 0 4.5-3 6 0"/>
+                  <path d="M2 6c2.5-3 5-3 7 0s4.5 3 7 0 4.5-3 6 0"/>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <h3>Marea Sicigia (10 Oct)</h3>
+                <p id="metricTideTimes" style="font-size: 0.95rem; font-weight: 700;">Baja 07:55 / Alta 14:15</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Leaflet Interactive Map -->
+          <div class="map-wrapper">
+            <div id="routeMap"></div>
+          </div>
+
+          <!-- Action bar -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="font-family: var(--font-heading); font-size: 1.2rem; font-weight: 700;">Itinerario de la Jornada (10 de Octubre)</h3>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Programado con horarios de luz solar, clima calibrado y picos de actividad biológica</p>
+            </div>
+            <div style="display: flex; gap: 0.6rem;">
+              <button class="btn-secondary" onclick="openGoogleMapsRoute()" id="btnOpenGoogleMaps">
+                Abrir en Google Maps
+              </button>
+              <button class="btn-secondary" onclick="printFieldChecklist()" id="btnPrintChecklist">
+                Imprimir Hoja de Campo
+              </button>
+            </div>
+          </div>
+
+          <!-- Timeline Container -->
+          <div class="timeline-container" id="timelineContainer">
+            <!-- Dynamically populated by route_planner.js -->
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: EXPLORADOR EBIRD API (OCULTO) ==================== -->
+    <section class="tab-pane" id="pane-explorer" role="tabpanel" style="display: none !important;">
+      <!-- Hidden from primary UI as requested -->
+      <input type="hidden" id="customApiKey" value="">
+    </section>
+
+    <!-- ==================== TAB 3: RADAR DE ESPECIES DE LOS LAGOS ==================== -->
+    <section class="tab-pane" id="pane-radar" role="tabpanel">
+      <div class="glass-panel" style="margin-bottom: 1.5rem;">
+        <div class="panel-header" style="flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h2 class="panel-title">Radar de Especies de Los Lagos</h2>
+            <p class="panel-subtitle">Aves registradas en los últimos 14 días en eBird con nombres comunes chilenos</p>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <span class="api-key-badge" id="radarTotalSpeciesCount">Cargando...</span>
+            <span class="api-key-badge" id="radarSeenBadge" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald); font-weight: 700;">
+              0 Registradas
+            </span>
+            <span class="api-key-badge" style="color: var(--rose); border-color: rgba(244,63,94,0.4);" id="radarNotableCount">0 Rarezas</span>
+            <button class="btn-secondary" onclick="exportRadarSeenList()" title="Copiar especies registradas al portapapeles" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+              Copiar Registradas
+            </button>
+            <button class="btn-secondary" onclick="resetRadarSeenList()" title="Desmarcar todas las especies" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+              Desmarcar Todo
+            </button>
+            <button class="btn-secondary" id="btnToggleRadarView" onclick="toggleRadarView()" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+              Vista Cuadrícula
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Chips & Search Bar -->
+        <div class="species-search-bar">
+          <input type="text" id="speciesSearchInput" class="form-control" placeholder="Buscar por nombre común o científico (ej. Chucao, Huet-huet, Zarapito, Carpintero)..." style="flex: 1; min-width: 280px;">
+          
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn-secondary filter-chip active" id="filter_all" onclick="filterSpecies('all')">Todas</button>
+            <button type="button" class="btn-secondary filter-chip" id="filter_forest" onclick="filterSpecies('forest')">Bosque Templado</button>
+            <button type="button" class="btn-secondary filter-chip" id="filter_wetland" onclick="filterSpecies('wetland')">Humedales y Playeras</button>
+            <button type="button" class="btn-secondary filter-chip" id="filter_raptors" onclick="filterSpecies('raptors')">Rapaces</button>
+            <button type="button" class="btn-secondary filter-chip" id="filter_notable" onclick="filterSpecies('notable')">Rarezas</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Species Checklist (List view with checkboxes) -->
+      <div id="speciesListContainer" class="checklist-table-wrapper" style="margin-bottom: 2rem;">
+        <!-- Dynamically rendered checklist -->
+      </div>
+
+      <!-- Species Cards Grid (Alternative view) -->
+      <div class="species-grid" id="speciesGrid" style="display: none;">
+        <!-- Dynamically rendered cards -->
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: BIORRITMO, CLIMA & GUÍA REGIONAL ==================== -->
+    <section class="tab-pane" id="pane-guide" role="tabpanel">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+        
+        <div class="glass-panel">
+          <h3 class="panel-title" style="color: var(--amber);">El Amanecer y el Dawn Chorus en Bosque Valdiviano</h3>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.75rem; line-height: 1.6;">
+            En la Región de Los Lagos, los passeriformes y especies del sotobosque templado lluvioso (familia <i>Rhinocryptidae</i> como el <b>Chucao</b> <i>Scelorchilus rubecula</i>, el <b>Huet-huet común</b> <i>Pteroptochos tarnii</i> y el <b>Churrín de la mocha</b> <i>Eugralla paradoxa</i>) tienen su punto máximo de actividad vocal y territorial entre <b>las 06:30 y las 09:30 AM</b>.
+          </p>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.75rem; line-height: 1.6;">
+            A partir de las 11:00 AM, estos pájaros descienden al interior denso del quilanto y del sotobosque, haciendo su detección hasta un 70% más difícil. Por eso la ruta siempre prioriza sitios como el <b>Parque Nacional Vicente Pérez Rosales</b>, <b>Monumento Natural Lahuen Ñadi</b> o <b>Parque Nacional Puyehue</b> a primera hora del día.
+          </p>
+        </div>
+
+        <div class="glass-panel">
+          <h3 class="panel-title" style="color: var(--cyan);">Humedales Costeros, Chiloé y Dinámica de Mareas (10 de Octubre)</h3>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.75rem; line-height: 1.6;">
+            Sitios como el <b>Santuario de la Naturaleza Humedales de Maullín</b>, <b>Bahía de Caulín</b>, <b>Humedal de Putemún</b> y <b>Pullao</b> albergan concentraciones hemisféricas del <b>Zarapito de pico recto</b> (<i>Limosa haemastica</i>), <b>Playero de lomo blanco</b>, <b>Flamenco chileno</b> y <b>Cisne de cuello negro</b>.
+          </p>
+          <div style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 8px; padding: 10px 14px; margin: 0.75rem 0; font-size: 0.84rem;">
+            <div style="font-weight: 700; color: #0284c7; margin-bottom: 4px;">Régimen de Mareas del 10 de Octubre (Seno de Reloncaví & Chiloé):</div>
+            <div style="color: var(--text-primary); line-height: 1.5;">
+              • Fase Lunar: <b>Luna Nueva (Mareas de Sicigia / Vivas)</b> con gran amplitud intermareal (~5.8m).<br>
+              • <b>07:55 AM (0.7m) - Bajamar matutina:</b> Extensas planicies lodosas expuestas. Alimentación óptima de limícolas y flamencos.<br>
+              • <b>14:15 PM (6.5m) - Pleamar de la tarde:</b> Agua alta cubre los llanos intermareales. Las aves se compactan en dormideros y puntillas de restinga (facilita conteos masivos).<br>
+              • <b>20:30 PM (0.6m) - Bajamar vespertina:</b> Segunda ventana de alimentación previa al crepúsculo.
+            </div>
+          </div>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6;">
+            El optimizador de rutas sincroniza automáticamente los hotspots marinos y estuarinos con el estado de marea calculando el coeficiente biológico para cada hora de arribo.
+          </p>
+        </div>
+
+        <div class="glass-panel">
+          <h3 class="panel-title" style="color: var(--rose);">Factores Climáticos Críticos en el Sur de Chile</h3>
+          <ul style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.75rem; line-height: 1.6; padding-left: 1.25rem;">
+            <li><b>Lluvia intensa (> 2 mm/h):</b> Reduce drásticamente la actividad de vuelo y obliga a las aves a guarecerse. El algoritmo aplica una penalización si el pronóstico de Open-Meteo supera el 50% de probabilidad de lluvia.</li>
+            <li><b>Viento fuerte (> 25 km/h):</b> Muy común en costas y fiordos. Afecta la audibilidad de los cantos y ahuyenta las aves de las copas de los árboles hacia estratos bajos.</li>
+            <li><b>Temperatura:</b> Días fríos y despejados con escarcha matutina retrasan unos 20-30 minutos el coro matutino hasta que los primeros rayos tibian la vegetación.</li>
+          </ul>
+        </div>
+
+        <div class="glass-panel">
+          <h3 class="panel-title" style="color: var(--emerald);">Hotspots Emblemáticos en Los Lagos (CL-LL)</h3>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.75rem; line-height: 1.6;">
+            <p>• <b>Humedales de Maullín:</b> +100 especies registradas. Sitio RHRAP de importancia hemisférica.</p>
+            <p>• <b>PN Vicente Pérez Rosales & Sendero Desolación:</b> Especialistas de bosque antiguo (Carpintero negro, Comesebo grande, Rayadito).</p>
+            <p>• <b>Bahía de Caulín & Pullao (Chiloé):</b> Flamencos chilenos, chorlos, gaviotas y patos silvestres.</p>
+            <p>• <b>Monumento Natural Lahuen Ñadi:</b> Último relicto de alerces milenarios de la depresión intermedia con abundante Chucao y Churrín.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Application Footer -->
+  <footer class="app-footer">
+    <p>
+      BirdRuta Los Lagos • Diseñado con datos de <a href="https://ebird.org" target="_blank">eBird</a> de The Cornell Lab of Ornithology y pronósticos meteorológicos de <a href="https://open-meteo.com" target="_blank">Open-Meteo</a>.
+    </p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/js/route_planner.js"></script>
+  <script src="/js/ebird_explorer.js"></script>
+  <script src="/js/species_radar.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
